@@ -1,1 +1,260 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FRG Punkterechner FLL 2026</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<style>
+:root{--acc:#ffd60a;--bl:#0a84ff;--gr:#30d158;--rd:#ff453a;--ln:rgba(255,255,255,.22)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+body{margin:0;min-height:100vh;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,sans-serif;background:#060914;padding:14px;max-width:760px;margin:0 auto}
+body::before,body::after{content:"";position:fixed;z-index:-1;border-radius:50%;filter:blur(90px);opacity:.55}
+body::before{width:70vmax;height:70vmax;left:-25vmax;top:-25vmax;background:radial-gradient(circle,#0a84ff,transparent 70%)}
+body::after{width:60vmax;height:60vmax;right:-25vmax;bottom:-25vmax;background:radial-gradient(circle,#bf5af2,transparent 70%)}
+.glass{background:linear-gradient(135deg,rgba(255,255,255,.17),rgba(255,255,255,.05));-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);border:1px solid var(--ln);border-radius:26px;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -1px 0 rgba(255,255,255,.08),0 12px 40px rgba(0,0,0,.4)}
+.btn{font:inherit;font-weight:700;color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:14px 18px;cursor:pointer;background:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,.04)),var(--t,rgba(255,255,255,.1));-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 6px 20px rgba(0,0,0,.3);transition:transform .15s,filter .15s}
+.btn:hover{filter:brightness(1.15)}.btn:active{transform:scale(.95)}.btn:disabled{opacity:.5}
+.btn.s{padding:8px 14px;font-size:.82rem}
+input,select{font:inherit;color:#fff;background:rgba(255,255,255,.08);border:1px solid var(--ln);border-radius:14px;padding:12px 14px;outline:0;box-shadow:inset 0 1px 3px rgba(0,0,0,.3)}
+input:focus,select:focus{border-color:var(--bl);box-shadow:0 0 0 3px rgba(10,132,255,.3)}
+select option{color:#000}
+.wrap{min-height:85vh;display:grid;place-items:center}
+.box{width:min(380px,100%);padding:28px;display:flex;flex-direction:column;gap:12px}
+h1{margin:0;font-size:1.7rem;letter-spacing:-.02em}.sub{margin:0 0 4px;color:rgba(255,255,255,.65)}
+.err{color:#ff8a80;min-height:1.3em;font-size:.9rem}.err.ok{color:#9ae6b4}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.chip{padding:7px 14px;border-radius:999px;font-size:.85rem;background:rgba(255,255,255,.1);border:1px solid var(--ln)}
+#stat.on{color:var(--gr)}#stat.off{color:var(--rd)}
+.tbox{display:flex;align-items:center;gap:12px;padding:12px 18px;margin-bottom:12px}
+#tm{font-size:2.6rem;font-weight:800;color:var(--acc);font-variant-numeric:tabular-nums;flex:1}
+.row{display:flex;gap:10px;margin-bottom:10px}.row>.btn{flex:1}.row>input{flex:2;min-width:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+.team{position:relative;padding:16px 10px;border-radius:20px;text-align:center;cursor:pointer;display:flex;flex-direction:column;gap:4px;background:rgba(255,255,255,.08);border:1px solid var(--ln);box-shadow:inset 0 1px 0 rgba(255,255,255,.3);transition:.2s}
+.team.on{border-color:var(--bl);background:rgba(10,132,255,.28);box-shadow:0 0 0 2px rgba(10,132,255,.5),inset 0 1px 0 rgba(255,255,255,.4)}
+.team small{color:var(--acc);font-weight:600}
+.x{position:absolute;top:4px;right:6px;background:none;border:0;color:var(--rd);font-size:1rem;padding:6px;cursor:pointer}
+#ed{position:fixed;inset:0;z-index:20;overflow-y:auto;background:rgba(6,9,20,.85);-webkit-backdrop-filter:blur(30px) saturate(160%);backdrop-filter:blur(30px) saturate(160%)}
+.ein{max-width:760px;margin:0 auto;min-height:100%;display:flex;flex-direction:column}
+.ehead{position:sticky;top:10px;z-index:2;display:flex;gap:12px;align-items:center;padding:14px 16px;margin:10px 10px 0}
+.ehead .t{flex:1;min-width:0}
+#cn{margin:0;color:var(--acc);font-size:1.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#tot{font-size:2rem;font-weight:800}
+#run{font-weight:700}
+#sgn{margin:10px 10px 0;padding:12px 16px;color:#9ae6b4;border-radius:18px;background:rgba(48,209,88,.18);border:1px solid rgba(48,209,88,.5);display:flex;align-items:center;gap:10px;justify-content:space-between}
+#ml{margin:10px;padding:4px 18px}
+.efoot{position:sticky;bottom:10px;margin:auto 10px 10px;padding:12px;z-index:2}
+.efoot .btn{width:100%;font-size:1.05rem;padding:16px}
+.sw:disabled,.sel:disabled{opacity:.45;cursor:not-allowed}
+#cf{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(0,0,0,.6);padding:14px;overflow:auto}
+.cfb{width:min(520px,100%);max-height:94vh;overflow:auto;padding:22px;display:flex;flex-direction:column;gap:12px}
+.sr{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:.92rem}
+.m{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.1)}
+.m:last-child{border:0}.mn{font-weight:600;font-size:.95rem}.m small{color:rgba(255,255,255,.55)}
+.sel{min-width:100px;padding:9px 10px}
+.sw{appearance:none;-webkit-appearance:none;width:56px;height:34px;padding:0;margin:0;border-radius:99px;position:relative;cursor:pointer;flex:none;background:rgba(255,255,255,.15);border:1px solid var(--ln);transition:.25s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.4);transition:.25s}
+.sw:checked{background:var(--gr)}.sw:checked::after{left:25px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:12px 22px;z-index:9;max-width:90vw;text-align:center}
+</style>
+</head>
+<body>
+<div id="login" class="wrap">
+  <form class="glass box" id="lf" autocomplete="off">
+    <h1>FRG Punkterechner</h1><p class="sub">FLL 2026 · bitte anmelden</p>
+    <input id="u" placeholder="Benutzername" autocomplete="username" required>
+    <input id="p" type="password" placeholder="Passwort" autocomplete="current-password" required>
+    <button class="btn" id="btnl" style="--t:rgba(10,132,255,.6)">Anmelden &amp; mit Leinwand verbinden</button>
+    <div id="err" class="err"></div>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <div class="bar">
+    <span class="chip" id="who"></span><span class="chip" id="stat">● verbunden</span><span style="flex:1"></span>
+    <button class="btn s adm" id="logb" hidden>📄 Log</button>
+    <button class="btn s" id="out">Abmelden</button>
+  </div>
+  <div class="glass tbox">
+    <div id="tm">02:30</div>
+    <button class="btn" id="go" style="--t:rgba(48,209,88,.6)">START</button>
+    <button class="btn" id="rs" style="--t:rgba(255,69,58,.55)">RESET</button>
+  </div>
+  <div class="row">
+    <input id="nt" class="adm" hidden placeholder="Neues Team" maxlength="30">
+    <button class="btn adm" id="at" hidden style="--t:rgba(10,132,255,.6)">+ TEAM</button>
+    <button class="btn" id="ar" style="--t:rgba(255,214,10,.45)">+ LAUF</button>
+  </div>
+  <div class="grid" id="tl"></div>
+  <div id="ed" hidden><div class="ein">
+    <div class="ehead glass"><div class="t"><h3 id="cn"></h3><div id="tot">0 Pkt.</div></div><select id="run"></select><button class="btn s" id="cl">✕</button></div>
+    <div id="sgn" hidden><span id="sgt"></span><button class="btn s adm" id="us" hidden>Entsperren</button></div>
+    <div id="ml" class="glass"></div>
+    <div class="efoot glass"><button class="btn" id="fin" style="--t:rgba(48,209,88,.6)">Auswertung abschließen …</button></div>
+  </div></div>
+  <div id="cf" hidden><div class="cfb glass">
+    <h2 style="margin:0">Alles richtig?</h2>
+    <div id="cft" class="sub"></div>
+    <div id="cfp" style="font-size:2.4rem;font-weight:800;color:var(--acc)"></div>
+    <div id="cfl"></div>
+    <p class="sub">Mit „Final abschicken“ signierst du diesen Lauf als <b id="cfu"></b>. Danach ist er gesperrt und deine Signatur steht im Protokoll.</p>
+    <button class="btn" id="cfy" style="--t:rgba(48,209,88,.65)">✔ Ja, final abschicken &amp; signieren</button>
+    <button class="btn" id="cfn">Zurück zur Korrektur</button>
+  </div></div>
+</div>
+<div id="toast" class="glass" hidden></div>
+
+<script>
+const PEER_ID = 'frg-fll-2026-leinwand';   // muss in index.html identisch sein
+const ROUND = 150000;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const fmt = ms => { const s=Math.max(0,Math.ceil(ms/1000)); return pad(Math.floor(s/60))+':'+pad(s%60); };
+
+let peer=null, conn=null, gen=0, creds=null, me=null, retrying=false;
+let M=[], S={teams:[],runCount:3}, cur={id:null,run:0};
+let tRun=false, tEnd=0, tIdle=ROUND;
+
+function msg(t,ok){ $('err').textContent=t; $('err').className='err'+(ok?' ok':''); }
+function toast(t){ const el=$('toast'); el.textContent=t; el.hidden=false; clearTimeout(toast.h); toast.h=setTimeout(()=>el.hidden=true,3000); }
+function setStat(ok){ $('stat').textContent=ok?'● verbunden':'● getrennt – verbinde neu…'; $('stat').className='chip '+(ok?'on':'off'); }
+function send(o){ if(conn&&conn.open) conn.send(o); else toast('Keine Verbindung zur Leinwand.'); }
+
+/* ---------- Verbindung ---------- */
+function boot(){
+  const g=++gen;
+  try{ if(peer&&!peer.destroyed) peer.destroy(); }catch(e){}
+  peer = new Peer();
+  peer.on('open',()=>{ if(g===gen) link(g); });
+  peer.on('error',e=>{
+    if(g!==gen) return;
+    if(me){ setStat(false); retry(); return; }
+    $('btnl').disabled=false;
+    msg(e.type==='peer-unavailable' ? 'Leinwand nicht erreichbar – ist index.html angemeldet?' : 'Verbindungsfehler ('+e.type+')');
+  });
+  peer.on('disconnected',()=>{ if(g===gen&&peer&&!peer.destroyed) peer.reconnect(); });
+}
+function link(g){
+  conn = peer.connect(PEER_ID,{reliable:true});
+  conn.on('open',()=>{ if(g===gen) conn.send({type:'LOGIN',user:creds.user,pass:creds.pass}); });
+  conn.on('data',d=>{ if(g===gen) onData(d); });
+  conn.on('close',()=>{ if(g===gen&&me){ setStat(false); retry(); } });
+}
+function retry(){
+  if(retrying) return; retrying=true;
+  setTimeout(()=>{ retrying=false; if(me&&creds) boot(); },2500);
+}
+function onData(d){
+  if(!d||typeof d!=='object') return;
+  switch(d.type){
+    case 'AUTH':
+      if(!d.ok){ me=null; creds=null; $('btnl').disabled=false; msg(d.msg||'Anmeldung fehlgeschlagen.'); try{conn.close()}catch(e){} }
+      break;
+    case 'WELCOME':
+      me={name:d.name,role:d.role}; M=d.missions; S.teams=d.teams; S.runCount=d.runCount;
+      $('login').hidden=true; $('app').hidden=false; $('btnl').disabled=false; msg('');
+      $('who').textContent=d.name+' · '+(d.role==='admin'?'Admin':'Benutzer');
+      document.querySelectorAll('.adm').forEach(e=>e.hidden=d.role!=='admin');
+      setStat(true); setTimer(d.timer); $('ml').dataset.t=''; render(); break;
+    case 'SYNC': S.teams=d.teams; S.runCount=d.runCount; render(); break;
+    case 'TIMER': setTimer(d); break;
+    case 'LOG': download(d.text); break;
+    case 'ERR': toast(d.msg); break;
+  }
+}
+
+/* ---------- Timer-Anzeige (Leinwand ist maßgeblich) ---------- */
+function setTimer(d){ tRun=!!d.running; tEnd=performance.now()+d.remaining; tIdle=d.remaining; }
+setInterval(()=>{
+  if(!me) return;
+  const r = tRun ? tEnd-performance.now() : tIdle;
+  if(tRun&&r<=0){ tRun=false; tIdle=0; }
+  $('tm').textContent = fmt(Math.max(0,r));
+},100);
+
+/* ---------- Anzeige ---------- */
+const team = () => S.teams.find(t=>t.id===cur.id);
+function render(){
+  const adm = me&&me.role==='admin';
+  $('tl').innerHTML = S.teams.map(t=>'<div class="team'+(t.id===cur.id?' on':'')+'" data-id="'+t.id+'">'+(adm?'<button class="x" data-del="'+t.id+'">✕</button>':'')+'<b>'+esc(t.name)+'</b><small>Best '+Math.max(0,...t.runs)+'</small></div>').join('')
+    || '<p class="sub" style="grid-column:1/-1;text-align:center">Noch keine Teams – oben anlegen.</p>';
+  const t=team();
+  if(!t){ cur.id=null; $('ed').hidden=true; $('cf').hidden=true; document.body.style.overflow=''; return; }
+  if(cur.run>=S.runCount) cur.run=0;
+  $('ed').hidden=false; document.body.style.overflow='hidden'; $('cn').textContent=t.name;
+  const rs=$('run');
+  rs.innerHTML=Array.from({length:S.runCount},(_,i)=>'<option value="'+i+'">Lauf '+(i+1)+(sigOf(t,i)?' ✓':'')+'</option>').join('');
+  rs.value=cur.run;
+  if($('ml').dataset.t!==cur.id) build();
+  fill();
+}
+function build(){
+  $('ml').dataset.t=cur.id;
+  $('ml').innerHTML = M.map(m=>{
+    const pts = m.table ? 'bis +'+Math.max(...m.table) : '+'+m.pts+(m.max>1?' je':'');
+    const c = m.max===1
+      ? '<input type="checkbox" class="sw" data-k="'+m.k+'">'
+      : '<select class="sel" data-k="'+m.k+'">'+Array.from({length:m.max+1},(_,i)=>'<option value="'+i+'">'+(m.table?i+' ('+m.table[i]+')':i)+'</option>').join('')+'</select>';
+    return '<div class="m"><div><div class="mn">'+esc(m.n)+'</div><small>'+pts+' Pkt.</small></div>'+c+'</div>';
+  }).join('');
+}
+const sigOf = (t,r) => (t.signed&&t.signed[r])||null;
+function confirmFill(t){
+  const det=t.details[cur.run]||{};
+  $('cft').textContent=t.name+' · Lauf '+(cur.run+1); $('cfp').textContent=(t.runs[cur.run]||0)+' Pkt.'; $('cfu').textContent=me.name;
+  $('cfl').innerHTML=M.filter(m=>det[m.k]).map(m=>{const v=det[m.k],p=m.table?m.table[v]:v*m.pts;return '<div class="sr"><span>'+esc(m.n)+(m.max>1?' ×'+v:'')+'</span><b>+'+p+'</b></div>';}).join('')||'<p class="sub">Keine Punkte eingetragen.</p>';
+}
+function fill(){
+  const t=team(); if(!t) return;
+  const det=t.details[cur.run]||{}, sg=sigOf(t,cur.run);
+  $('ml').querySelectorAll('[data-k]').forEach(el=>{
+    const v=det[el.dataset.k]||0;
+    if(el.type==='checkbox') el.checked=v===1; else el.value=String(v);
+    el.disabled=!!sg&&me.role!=='admin';
+  });
+  $('tot').textContent=(t.runs[cur.run]||0)+' Pkt.';
+  $('sgn').hidden=!sg; $('fin').hidden=!!sg;
+  if(sg) { const f=ts=>new Date(ts).toLocaleString('de-DE'); $('sgt').textContent='🔒 Signiert von '+sg.by+' um '+f(sg.at)+(sg.chBy?' · geändert von '+sg.chBy+' um '+f(sg.chAt):'')+' · '+sg.pts+' Pkt.'+(me.role==='admin'?' · Als Admin kannst du ändern.':''); }
+  if(!$('cf').hidden){ if(sg) $('cf').hidden=true; else confirmFill(t); }
+}
+
+/* ---------- Eingaben ---------- */
+$('tl').onclick = e=>{
+  const del=e.target.closest('[data-del]');
+  if(del){ e.stopPropagation(); const t=S.teams.find(x=>x.id===del.dataset.del); if(t&&confirm('Team "'+t.name+'" wirklich löschen?')) send({type:'DEL_TEAM',id:t.id}); return; }
+  const b=e.target.closest('[data-id]'); if(!b) return;
+  cur.id=b.dataset.id; cur.run=0; $('ml').dataset.t=''; render();
+};
+$('ml').onchange = e=>{
+  const el=e.target; if(!el.dataset.k||!cur.id) return;
+  send({type:'SET',id:cur.id,run:cur.run,k:el.dataset.k,v:el.type==='checkbox'?(el.checked?1:0):parseInt(el.value,10)});
+};
+$('run').onchange = ()=>{ cur.run=parseInt($('run').value,10)||0; fill(); };
+$('cl').onclick = ()=>{ cur.id=null; render(); };
+$('fin').onclick = ()=>{ const t=team(); if(!t) return; confirmFill(t); $('cf').hidden=false; };
+$('cfn').onclick = ()=>{ $('cf').hidden=true; };
+$('cfy').onclick = ()=>{ if(!cur.id) return; send({type:'SIGN',id:cur.id,run:cur.run}); $('cf').hidden=true; };
+$('us').onclick = ()=>{ if(cur.id&&confirm('Signatur aufheben und Lauf wieder entsperren?')) send({type:'UNSIGN',id:cur.id,run:cur.run}); };
+$('at').onclick = ()=>{ const n=$('nt').value.trim(); if(!n) return; send({type:'ADD_TEAM',name:n}); $('nt').value=''; };
+$('nt').onkeydown = e=>{ if(e.key==='Enter') $('at').click(); };
+$('ar').onclick = ()=>{ if(confirm('Neuen Lauf für ALLE Teams hinzufügen?')) send({type:'ADD_RUN'}); };
+$('go').onclick = ()=>send({type:'TIMER',action:'start'});
+$('rs').onclick = ()=>{ if(tRun&&!confirm('Timer läuft – wirklich zurücksetzen?')) return; send({type:'TIMER',action:'reset'}); };
+$('logb').onclick = ()=>send({type:'GET_LOG'});
+$('out').onclick = ()=>location.reload();
+$('lf').onsubmit = e=>{
+  e.preventDefault();
+  creds={user:$('u').value.trim(),pass:$('p').value}; $('p').value='';
+  $('btnl').disabled=true; msg('Verbinde…',true); boot();
+};
+function download(text){
+  const a=document.createElement('a'), d=new Date();
+  a.href=URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));
+  a.download='FRG-Log-'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())+'.txt';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+</script>
+</body>
+</html>
 
