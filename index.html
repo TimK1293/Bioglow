@@ -1,1 +1,309 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FRG Punkterechner · Scoreboard</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<style>
+:root{--acc:#ffd60a;--bl:#0a84ff;--gr:#30d158;--rd:#ff453a;--ln:rgba(255,255,255,.22)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+body{margin:0;min-height:100vh;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",system-ui,sans-serif;background:#060914;padding:16px}
+body::before,body::after{content:"";position:fixed;z-index:-1;border-radius:50%;filter:blur(90px);opacity:.55}
+body::before{width:60vmax;height:60vmax;left:-20vmax;top:-20vmax;background:radial-gradient(circle,#0a84ff,transparent 70%)}
+body::after{width:55vmax;height:55vmax;right:-20vmax;bottom:-20vmax;background:radial-gradient(circle,#bf5af2,transparent 70%)}
+.glass{background:linear-gradient(135deg,rgba(255,255,255,.17),rgba(255,255,255,.05));-webkit-backdrop-filter:blur(26px) saturate(180%);backdrop-filter:blur(26px) saturate(180%);border:1px solid var(--ln);border-radius:26px;box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -1px 0 rgba(255,255,255,.08),0 12px 40px rgba(0,0,0,.4)}
+.btn{font:inherit;font-weight:700;color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:999px;padding:14px 20px;cursor:pointer;background:linear-gradient(180deg,rgba(255,255,255,.3),rgba(255,255,255,.04)),var(--t,rgba(255,255,255,.1));-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:inset 0 1px 0 rgba(255,255,255,.55),0 6px 20px rgba(0,0,0,.3);transition:transform .15s,filter .15s}
+.btn:hover{filter:brightness(1.15)}.btn:active{transform:scale(.95)}.btn:disabled{opacity:.5}
+.btn.s{padding:9px 16px;font-size:.85rem}
+input{font:inherit;color:#fff;background:rgba(255,255,255,.08);border:1px solid var(--ln);border-radius:14px;padding:13px 15px;outline:0;box-shadow:inset 0 1px 3px rgba(0,0,0,.3)}
+input:focus{border-color:var(--bl);box-shadow:0 0 0 3px rgba(10,132,255,.3)}
+.wrap{min-height:90vh;display:grid;place-items:center}
+.box{width:min(380px,100%);padding:30px;display:flex;flex-direction:column;gap:12px}
+h1{margin:0;font-size:1.8rem;letter-spacing:-.02em}.sub{margin:0 0 6px;color:rgba(255,255,255,.65)}
+.err{color:#ff8a80;min-height:1.3em;font-size:.9rem}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:1300px;margin:0 auto}
+.chip{padding:8px 16px;border-radius:999px;font-size:.9rem;background:rgba(255,255,255,.1);border:1px solid var(--ln)}
+#stat.on{color:var(--gr)}#stat.off{color:var(--rd)}
+#msg{max-width:1300px;margin:8px auto 0;color:var(--acc);text-align:center;min-height:1.2em}
+#timer{text-align:center;font-size:clamp(5rem,19vw,14rem);font-weight:800;line-height:1;margin:10px 0 24px;font-variant-numeric:tabular-nums;letter-spacing:-.03em;color:var(--acc);text-shadow:0 0 60px rgba(255,214,10,.45)}
+#timer.warn{color:var(--rd);text-shadow:0 0 60px rgba(255,69,58,.6)}
+.tw{max-width:1300px;margin:0 auto;padding:10px 18px;overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{padding:12px;color:rgba(255,255,255,.6);font-weight:600;font-size:1rem}
+td{padding:14px 12px;font-size:1.5rem;text-align:center;border-top:1px solid rgba(255,255,255,.1)}
+td.tn{text-align:left;font-weight:700}td.rk{width:50px;color:rgba(255,255,255,.55)}
+td.best{color:var(--acc);font-weight:800}
+td.top{background:rgba(10,132,255,.45);box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);border-radius:12px}
+</style>
+</head>
+<body>
+<div id="login" class="wrap">
+  <form class="glass box" id="lf" autocomplete="off">
+    <h1>FRG Scoreboard</h1><p class="sub">FLL 2026 · bitte anmelden</p>
+    <input id="u" placeholder="Benutzername" autocomplete="username" required>
+    <input id="p" type="password" placeholder="Passwort" autocomplete="current-password" required>
+    <button class="btn" style="--t:rgba(10,132,255,.6)">Anmelden</button>
+    <div id="err" class="err"></div>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <div class="bar">
+    <span class="chip" id="who"></span>
+    <span class="chip" id="stat">● 0 Geräte</span>
+    <span style="flex:1"></span>
+    <button class="btn s" id="snd">🔊 Sound-Test</button>
+    <button class="btn s" id="logb" hidden>📄 Log laden</button>
+    <button class="btn s" id="rst" hidden style="--t:rgba(255,69,58,.5)">Zurücksetzen</button>
+    <button class="btn s" id="out">Abmelden</button>
+  </div>
+  <div id="msg"></div>
+  <div id="timer">02:30</div>
+  <div class="glass tw"><table><thead id="th"></thead><tbody id="tb"></tbody></table></div>
+  <p style="text-align:center;color:rgba(255,255,255,.45);margin:14px 0 0">Punkte erscheinen, sobald ein Lauf signiert wurde.</p>
+</div>
+
+<script>
+/* ============ KONFIGURATION ============ */
+const PEER_ID = 'frg-fll-2026-leinwand';   // muss in rechner.html identisch sein (am besten einen eigenen, schwer zu erratenden Wert wählen)
+const ROUND = 150000;                       // 2:30 Minuten in ms
+
+/* BENUTZER: hier legst du Accounts fest. KEINE Klartext-Passwörter!
+   Zeilen erzeugst du mit hash-tool.html. Benutzernamen kleingeschrieben.
+   role: 'admin' oder 'user' (= Benutzer) */
+const USERS = {
+  'admin': {role:'admin', salt:'ad69e887980ebe85687223a245af2692', hash:'24ce3958fc2edd1702a929cfff8113e7f7330eb263c4d8fe86b9dc6304ff0156'},
+  'benutzer1': {role:'user', salt:'3362356ac1ffeba6dc62b81a6d19b909', hash:'21f7bcd98643de66973e4c7311cfa09f81ca0a78720c573d7558e7de8d02f93b'},
+  'benutzer2': {role:'user', salt:'75bc308d43a1a59b2ce949e0a21941cf', hash:'7459260b290e043f32799e5393fd8cbc3b6955ffa38e403d644a879511159c2a'},
+};
+
+/* ============ PUNKTE ============ */
+const ROLE = {admin:'Admin', user:'Benutzer'};
+const RAW = [
+["M00: Materialinspektion",20,1],["M01: Oberfläche reinigen",10,2],["M01: Pinsel",10,1],["M02: Landkarte enthüllen",10,3],
+["M03: Grubenforscherin",30,1],["M03: Gegnerische Lore bei uns",10,1],["M04: Vorsichtige Bergung: Artefakt",30,1],
+["M04: Vorsichtige Bergung: Tragwerke",10,1],["M05: Frühere Bewohner:innen",30,1],["M06: Schmiede",10,3],["M07: Schweres Heben",30,1],
+["M08: Silo",10,3],["M09: Marktstand: Dach",20,1],["M09: Marktstand: Marktwaren",10,1],["M10: Waagschale: Gekippt",20,1],
+["M10: Waagschale: Entfernt",10,1],["M11: Angler-Artefakte: Angehoben",20,1],["M11: Angler-Artefakte: Kranflagge abgesenkt",10,1],
+["M12: Bergungsaktion: Sand abgetragen",20,1],["M12: Bergungsaktion: Schiff angehoben",10,1],["M13: Statue rekonstruieren",30,1],
+["M14: Forum",5,7],["M15: Fundstellenmarkierungen",10,3]];
+const MISSIONS = RAW.map((r,i)=>({k:'m'+i,n:r[0],pts:r[1],max:r[2]}));
+MISSIONS.push({k:'prec',n:'Präzisionsmarken',max:6,table:[0,10,15,25,35,50,50]});
+const total = d => MISSIONS.reduce((s,m)=>{const v=d[m.k]||0;return s+(m.table?(m.table[v]||0):v*m.pts)},0);
+
+/* ============ HELFER ============ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const sign = x => (x>0?'+':'')+x;
+const hex = b => [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+const load = (k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
+
+/* ============ LOGIN (PBKDF2-SHA256) ============ */
+async function hashPw(pw,salt){
+  const k = await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
+  return hex(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:new TextEncoder().encode(salt),iterations:100000},k,256));
+}
+let fails=0, lockUntil=0;
+const locked = () => Date.now()<lockUntil;
+function failed(name){ fails++; log('System','Fehlgeschlagener Login: "'+String(name).slice(0,30)+'"'); if(fails>=5){lockUntil=Date.now()+30000;fails=0} }
+async function verify(name,pw){
+  name = name.trim().toLowerCase();
+  const known = Object.prototype.hasOwnProperty.call(USERS,name);
+  const a = known ? USERS[name] : {salt:'x',hash:'',role:'user'};
+  const h = await hashPw(pw,a.salt);
+  let diff = h.length ^ a.hash.length;
+  for(let i=0;i<h.length;i++) diff |= h.charCodeAt(i) ^ (a.hash.charCodeAt(i)||0);
+  return known && diff===0 ? {name,role:a.role==='admin'?'admin':'user'} : null;
+}
+
+/* ============ DATEN ============ */
+let S = load('frg_state',{runCount:3,teams:[]});
+let LOG = load('frg_log',[]);
+function save(){ try{localStorage.setItem('frg_state',JSON.stringify(S));localStorage.setItem('frg_log',JSON.stringify(LOG))}catch(e){} }
+function log(u,x){ LOG.push({t:Date.now(),u,x}); if(LOG.length>5000)LOG.shift(); save(); }
+const best = t => Math.max(0,...t.runs);
+
+function render(){
+  $('th').innerHTML = '<tr><th></th><th style="text-align:left">Team</th>'+Array.from({length:S.runCount},(_,i)=>'<th>L'+(i+1)+'</th>').join('')+'<th>Best</th></tr>';
+  const vis = t => t.runs.filter((r,i)=>sig(t,i));            // nur signierte Läufe sind öffentlich
+  const bestS = t => Math.max(0,...vis(t));
+  const sorted = [...S.teams].sort((a,b)=>bestS(b)-bestS(a)||a.name.localeCompare(b.name));
+  const g = Math.max(0,...S.teams.flatMap(vis));
+  $('tb').innerHTML = sorted.map(t=>{
+    const rank = sorted.findIndex(x=>bestS(x)===bestS(t))+1;
+    return '<tr><td class="rk">'+rank+'</td><td class="tn">'+esc(t.name)+'</td>'+
+      t.runs.map((r,i)=>sig(t,i)?'<td class="'+(g>0&&r===g?'top':'')+'">'+r+'</td>':'<td style="color:rgba(255,255,255,.3)">–</td>').join('')+
+      '<td class="best">'+(vis(t).length?bestS(t):'–')+'</td></tr>';
+  }).join('') || '<tr><td colspan="'+(S.runCount+3)+'" style="color:rgba(255,255,255,.5)">Noch keine Teams – am Rechner anlegen.</td></tr>';
+}
+function bcast(o){ conns.forEach(c=>c.auth&&c.open&&c.send(o)); }
+function sync(){ save(); render(); bcast({type:'SYNC',teams:S.teams,runCount:S.runCount}); }
+
+/* ============ AKTIONEN ============ */
+const PERM = {SET:0,TIMER:0,ADD_RUN:0,SIGN:0,ADD_TEAM:1,DEL_TEAM:1,UNSIGN:1,GET_LOG:1}; // 1 = nur Admin
+const sig = (t,r) => (t.signed&&t.signed[r])||null;
+const own = (o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+function act(u,d,c){
+  const name = u.name;
+  switch(d.type){
+    case 'ADD_TEAM':{
+      const n = String(d.name||'').trim().slice(0,30);
+      if(!n || S.teams.some(t=>t.name.toLowerCase()===n.toLowerCase())) return c&&c.send({type:'ERR',msg:'Teamname fehlt oder existiert schon.'});
+      S.teams.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),name:n,runs:Array(S.runCount).fill(0),details:Array.from({length:S.runCount},()=>({})),signed:[]});
+      log(name,'Team angelegt: '+n); sync(); break;}
+    case 'DEL_TEAM':{
+      const i = S.teams.findIndex(t=>t.id===d.id); if(i<0)return;
+      const t = S.teams.splice(i,1)[0];
+      log(name,'Team gelöscht: '+t.name+' (Läufe: '+t.runs.join(' / ')+')'); sync(); break;}
+    case 'ADD_RUN':{
+      if(S.runCount>=10) return c&&c.send({type:'ERR',msg:'Maximal 10 Läufe.'});
+      S.runCount++; S.teams.forEach(t=>{t.runs.push(0);t.details.push({});t.signed=t.signed||[];t.signed[S.runCount-1]=null;});
+      log(name,'Lauf '+S.runCount+' hinzugefügt'); sync(); break;}
+    case 'SET':{
+      const t = S.teams.find(x=>x.id===d.id), m = MISSIONS.find(x=>x.k===d.k), r = d.run, v = d.v;
+      if(!t||!m||!Number.isInteger(r)||r<0||r>=S.runCount||!Number.isInteger(v)||v<0||v>m.max) return;
+      const sg = sig(t,r);
+      if(sg&&u.role!=='admin') return c&&c.send({type:'ERR',msg:'Lauf ist signiert und gesperrt – nur ein Admin kann ihn ändern.'});
+      const det = t.details[r]||(t.details[r]={}), old = det[m.k]||0;
+      if(old===v) return;
+      const before = t.runs[r]; det[m.k]=v; t.runs[r]=total(det);
+      if(sg){ sg.pts=t.runs[r]; sg.chBy=name; sg.chAt=Date.now(); }
+      log(name,(sg?'ÄNDERUNG AN SIGNIERTEM LAUF (Admin): ':'')+t.name+' · Lauf '+(r+1)+' · '+m.n+': '+old+' → '+v+' ('+sign(t.runs[r]-before)+' Pkt.) · Lauf gesamt: '+t.runs[r]+' Pkt.');
+      sync(); break;}
+    case 'SIGN':{
+      const t = S.teams.find(x=>x.id===d.id), r = d.run;
+      if(!t||!Number.isInteger(r)||r<0||r>=S.runCount) return;
+      if(sig(t,r)) return c&&c.send({type:'ERR',msg:'Dieser Lauf ist bereits signiert.'});
+      const det = t.details[r]||{};
+      const parts = MISSIONS.filter(m=>det[m.k]).map(m=>m.n+(m.max>1?' ×'+det[m.k]:'')+' = '+(m.table?m.table[det[m.k]]:det[m.k]*m.pts));
+      (t.signed=t.signed||[])[r] = {by:name,at:Date.now(),pts:t.runs[r]};
+      log(name,'SIGNIERT: '+name+' hat Lauf '+(r+1)+' von Team "'+t.name+'" mit '+t.runs[r]+' Pkt. final signiert. Aufstellung: '+(parts.join('; ')||'keine Punkte'));
+      sync(); break;}
+    case 'UNSIGN':{
+      const t = S.teams.find(x=>x.id===d.id), r = d.run;
+      if(!t||!Number.isInteger(r)||!sig(t,r)) return;
+      const o = t.signed[r]; t.signed[r]=null;
+      log(name,'Signatur von '+o.by+' für Lauf '+(r+1)+' von Team "'+t.name+'" aufgehoben (Admin: '+name+')'); sync(); break;}
+    case 'TIMER':
+      if(d.action==='start') startTimer(name); else if(d.action==='reset') resetTimer(name); break;
+    case 'GET_LOG':
+      log(name,'Log heruntergeladen'); c&&c.send({type:'LOG',text:buildLog()}); break;
+  }
+}
+function buildLog(){
+  const f = t => new Date(t).toLocaleString('de-DE');
+  const sorted = [...S.teams].sort((a,b)=>best(b)-best(a));
+  return '\uFEFFFRG Punkterechner · FLL 2026 – Protokoll\r\nErstellt: '+f(Date.now())+'\r\n'+'='.repeat(60)+'\r\n\r\nAKTUELLER STAND\r\n'+
+    (sorted.map((t,i)=>(i+1)+'. '+t.name+' – Läufe: '+t.runs.map((r,i)=>r+(sig(t,i)?' ✓('+t.signed[i].by+(t.signed[i].chBy?', geändert von '+t.signed[i].chBy:'')+')':'')).join(' / ')+' – Best: '+best(t)).join('\r\n')||'(keine Teams)')+
+    '\r\n\r\nPROTOKOLL ('+LOG.length+' Einträge)\r\n'+LOG.map(e=>'['+f(e.t)+'] '+e.u+': '+e.x).join('\r\n')+'\r\n';
+}
+function download(text){
+  const a = document.createElement('a'), d = new Date();
+  a.href = URL.createObjectURL(new Blob([text],{type:'text/plain;charset=utf-8'}));
+  a.download = 'FRG-Log-'+d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'_'+pad(d.getHours())+pad(d.getMinutes())+'.txt';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+
+/* ============ SOUND ============ */
+let ac=null;
+function initAudio(){ try{ ac = ac || new (window.AudioContext||window.webkitAudioContext)(); ac.resume(); }catch(e){} }
+function tone(f,dur,type,vol,glide){
+  if(!ac) return; ac.resume();
+  const o=ac.createOscillator(), g=ac.createGain(), t=ac.currentTime;
+  o.type=type; o.frequency.setValueAtTime(f,t); if(glide)o.frequency.exponentialRampToValueAtTime(glide,t+dur);
+  g.gain.setValueAtTime(vol,t); g.gain.setValueAtTime(vol,t+dur*.7); g.gain.exponentialRampToValueAtTime(.001,t+dur);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t+dur+.05);
+}
+const beep = () => tone(1000,.7,'sine',.5);
+const buzz = () => tone(440,1.6,'square',.25,110);
+
+/* ============ TIMER (monotone Zeit, driftfrei) ============ */
+let tEnd=0, tInt=null;
+const fmt = ms => { const s=Math.max(0,Math.ceil(ms/1000)); return pad(Math.floor(s/60))+':'+pad(s%60); };
+const running = () => tInt!==null;
+function showTimer(r){ $('timer').textContent=fmt(r); $('timer').classList.toggle('warn',running()&&r<=10000); }
+function tick(){
+  const r = tEnd-performance.now();
+  if(r<=0){ clearInterval(tInt); tInt=null; showTimer(0); buzz(); log('System','Timer abgelaufen'); tmr(); return; }
+  showTimer(r);
+}
+function tmr(){ bcast({type:'TIMER',running:running(),remaining:running()?Math.max(0,tEnd-performance.now()):ROUND}); }
+function startTimer(u){
+  if(running()) return;
+  initAudio(); tEnd = performance.now()+ROUND; tInt = setInterval(tick,50); showTimer(ROUND);
+  beep(); log(u,'Timer gestartet'); tmr();
+}
+function resetTimer(u){
+  const was = running(); clearInterval(tInt); tInt=null; showTimer(ROUND);
+  log(u,was?'Timer während des Laufs zurückgesetzt':'Timer zurückgesetzt'); tmr();
+}
+
+/* ============ VERBINDUNG ============ */
+let peer=null; const conns=new Set();
+const stat = () => { const n=[...conns].filter(c=>c.auth&&c.open).length, ok=peer&&peer.open; $('stat').textContent='● '+(ok?n+' Gerät'+(n===1?'':'e'):'offline'); $('stat').className='chip '+(ok?'on':'off'); };
+function openPeer(){
+  peer = new Peer(PEER_ID);
+  peer.on('open',()=>{ $('msg').textContent=''; stat(); });
+  peer.on('connection',c=>{
+    c.auth=null; conns.add(c);
+    setTimeout(()=>{ if(!c.auth) c.close(); },30000);
+    c.on('data',d=>onData(c,d));
+    const gone=()=>{ if(conns.delete(c)) stat(); };
+    c.on('close',gone); c.on('error',gone);
+  });
+  peer.on('error',e=>{
+    if(e.type==='unavailable-id'){ $('msg').textContent='Code belegt – läuft die Leinwand schon in einem anderen Tab? Neuer Versuch…'; peer.destroy(); setTimeout(openPeer,5000); }
+    else if(e.type!=='peer-unavailable'){ $('msg').textContent='Verbindungsproblem ('+e.type+') – versuche neu…'; stat(); }
+  });
+  peer.on('disconnected',()=>{ stat(); setTimeout(()=>{ if(peer&&!peer.destroyed) peer.reconnect(); },2000); });
+}
+async function onData(c,d){
+  if(!d||typeof d!=='object') return;
+  if(d.type==='LOGIN'){
+    if(locked()) return c.send({type:'AUTH',ok:false,msg:'Zu viele Versuche – bitte 30 Sekunden warten.'});
+    const u = await verify(String(d.user||''),String(d.pass||''));
+    if(!u){ failed(d.user||''); c.send({type:'AUTH',ok:false,msg:'Name oder Passwort falsch.'}); return; }
+    fails=0; c.auth=u;
+    log('System','Rechner angemeldet: '+u.name+' ('+ROLE[u.role]+')');
+    c.send({type:'AUTH',ok:true});
+    c.send({type:'WELCOME',name:u.name,role:u.role,missions:MISSIONS,teams:S.teams,runCount:S.runCount,timer:{running:running(),remaining:running()?Math.max(0,tEnd-performance.now()):ROUND}});
+    stat(); return;
+  }
+  if(!c.auth||!own(PERM,d.type)) return;
+  if(PERM[d.type] && c.auth.role!=='admin'){ log(c.auth.name,'Nicht erlaubte Aktion versucht: '+d.type); return c.send({type:'ERR',msg:'Nur für Admins.'}); }
+  act(c.auth,d,c);
+}
+
+/* ============ START ============ */
+let me=null;
+$('lf').onsubmit = async e=>{
+  e.preventDefault(); initAudio(); $('err').textContent='';
+  if(locked()){ $('err').textContent='Zu viele Versuche – bitte 30 Sekunden warten.'; return; }
+  const u = await verify($('u').value,$('p').value);
+  $('p').value='';
+  if(!u){ failed($('u').value); $('err').textContent='Name oder Passwort falsch.'; return; }
+  fails=0; me=u; log('System','Leinwand angemeldet: '+u.name+' ('+ROLE[u.role]+')');
+  $('login').hidden=true; $('app').hidden=false;
+  $('who').textContent=u.name+' · '+ROLE[u.role];
+  if(u.role==='admin'){ $('logb').hidden=false; $('rst').hidden=false; }
+  render(); showTimer(ROUND); openPeer(); keepAwake();
+};
+$('snd').onclick = ()=>{ initAudio(); beep(); setTimeout(buzz,900); };
+$('out').onclick = ()=>location.reload();
+$('logb').onclick = ()=>{ if(me&&me.role==='admin'){ log(me.name,'Log heruntergeladen'); download(buildLog()); } };
+$('rst').onclick = ()=>{
+  if(!me||me.role!=='admin') return;
+  if(confirm('Alle Teams und Punkte löschen? Das Protokoll bleibt erhalten.') && confirm('Wirklich sicher? Das kann nicht rückgängig gemacht werden.')){
+    S={runCount:3,teams:[]}; log(me.name,'Alle Teams und Punkte zurückgesetzt'); sync();
+  }
+};
+let wl=null;
+async function keepAwake(){ try{ wl=await navigator.wakeLock.request('screen'); }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&me) keepAwake(); });
+</script>
+</body>
+</html>
 
